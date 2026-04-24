@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NatGas Wx">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>NatGas Weather Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#1c2128;--bg4:#21262d;
+  --border:#21262d;--border2:#30363d;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --blue:#4493f8;--orange:#f0883e;--red:#ff7b72;--green:#3fb950;
+  --yellow:#e3b341;--purple:#a371f7;
+  --font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);padding:14px;min-height:100vh;font-size:13px;line-height:1.5}
+
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.hdr-l h1{font-size:13px;font-weight:600;color:var(--blue);letter-spacing:.5px;margin-bottom:2px}
+.hdr-l .sub{font-size:11px;color:var(--text2)}
+.hdr-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.upd{font-size:11px;color:var(--text2);font-family:var(--mono)}
+.btn{background:var(--bg2);border:1px solid var(--border2);color:var(--text2);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);font-weight:500;transition:all .15s}
+.btn:hover{border-color:var(--blue);color:var(--blue)}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot.ok{background:var(--green);animation:pulse 2s infinite}
+.dot.err{background:var(--red)}
+.dot.loading{background:var(--yellow);animation:pulse .6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.api-counter{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:10px;font-family:var(--mono)}
+.api-counter-lbl{color:var(--text3)}
+.api-counter-val{color:var(--blue);font-weight:600}
+.api-counter-reset{color:var(--text3);font-size:9px}
+
+.cache-badge{font-size:10px;font-family:var(--mono);padding:3px 8px;border-radius:4px;border:1px solid}
+.cache-live{background:rgba(63,185,80,.1);color:var(--green);border-color:rgba(63,185,80,.3)}
+.cache-cached{background:rgba(68,147,248,.1);color:var(--blue);border-color:rgba(68,147,248,.3)}
+.cache-loading{background:rgba(227,179,65,.1);color:var(--yellow);border-color:rgba(227,179,65,.3)}
+
+.tw-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.tw-label{font-size:10px;color:var(--text2);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.tw-btn{background:var(--bg2);border:1px solid var(--border2);color:var(--text2);padding:4px 9px;border-radius:5px;cursor:pointer;font-size:11px;font-family:var(--font);transition:all .15s}
+.tw-btn:hover{border-color:var(--blue);color:var(--blue)}
+.tw-btn.on{background:#1f3a6e;border-color:var(--blue);color:var(--blue)}
+
+.bias-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px}
+.section-label{font-size:10px;font-weight:600;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+
+.metric-boxes{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px}
+@media(max-width:900px){.metric-boxes{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:500px){.metric-boxes{grid-template-columns:repeat(2,1fr)}}
+.mbox{background:var(--bg3);border-radius:6px;padding:10px 12px;min-width:0}
+.mbox-lbl{font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbox-val{font-size:16px;font-weight:700;font-family:var(--mono);line-height:1.2;word-break:break-word}
+.mbox-sub{font-size:9px;color:var(--text2);margin-top:3px;line-height:1.4}
+.mbox-season .mbox-val{font-size:13px}
+
+.bias-word{font-size:26px;font-weight:700;line-height:1;font-family:var(--mono);margin-bottom:6px}
+.bull{color:var(--green)}.bear{color:var(--red)}.sbull{color:#7ed49a}.sbear{color:#ffaa99}.neut{color:var(--yellow)}
+.bias-score-wrap{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.bias-score-bar{flex:1;height:5px;border-radius:3px;background:var(--bg4);overflow:hidden}
+.bias-score-fill{height:100%;border-radius:3px;transition:width .6s,background .6s}
+.bias-score-num{font-size:11px;font-family:var(--mono);color:var(--text2);min-width:36px;text-align:right}
+
+.accordion{border:1px solid var(--border2);border-radius:6px;overflow:hidden;margin-top:10px}
+.accordion-btn{width:100%;background:var(--bg3);border:none;color:var(--text2);padding:8px 12px;font-size:10px;font-family:var(--font);font-weight:600;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:color .15s}
+.accordion-btn:hover{color:var(--text)}
+.accordion-arrow{font-size:11px;transition:transform .25s;display:inline-block}
+.accordion-body{display:none;padding:10px;background:var(--bg3);border-top:1px solid var(--border2)}
+.score-method-title{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.score-row{display:flex;align-items:center;margin-bottom:5px;gap:6px}
+.score-row:last-child{margin-bottom:0;padding-top:5px;border-top:1px solid var(--border2)}
+.score-row-label{font-size:10px;color:var(--text2);flex:0 0 160px;white-space:nowrap}
+.score-row-bar{flex:1;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;min-width:30px}
+.score-row-fill{height:100%;border-radius:2px;transition:width .5s,background .5s}
+.score-row-anom{font-size:10px;font-family:var(--mono);min-width:36px;text-align:right;color:var(--text3)}
+.score-row-eq{font-size:10px;font-family:var(--mono);min-width:10px;text-align:center;color:var(--text3)}
+.score-row-wt{font-size:10px;color:var(--text3);min-width:28px}
+.score-row-val{font-size:10px;font-family:var(--mono);min-width:44px;text-align:right;font-weight:600}
+.score-total-label{font-size:10px;font-weight:600;color:var(--text);flex:0 0 160px}
+.score-total-val{font-size:13px;font-family:var(--mono);font-weight:700;min-width:44px;text-align:right}
+
+.block{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px}
+.bhead{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:6px}
+.btitle{font-size:11px;font-weight:600;color:var(--text)}
+.bsub{font-size:10px;color:var(--text2);margin-top:2px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2)}
+.ldr{width:16px;height:2.5px;border-radius:2px;flex-shrink:0}
+.ldb{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.ldband{width:20px;height:8px;border-radius:2px;flex-shrink:0}
+.cw{position:relative;width:100%}
+
+.spin{text-align:center;padding:40px;color:var(--text2);font-size:12px}
+.sp{display:inline-block;width:14px;height:14px;border:2px solid var(--bg4);border-top-color:var(--blue);border-radius:50%;animation:spinkf .8s linear infinite;margin-right:6px;vertical-align:middle}
+@keyframes spinkf{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-l">
+    <h1>🔥 NatGas Weather Dashboard</h1>
+    <div class="sub">5 US regions · weighted · Base 18°C</div>
+  </div>
+  <div class="hdr-r">
+    <div class="api-counter" title="Open-Meteo API calls today (resets at midnight)">
+      <span class="api-counter-lbl">API calls</span>
+      <span class="api-counter-val" id="api-count">0</span>
+      <span class="api-counter-reset" id="api-reset">resets at midnight</span>
+    </div>
+    <span class="cache-badge cache-loading" id="cache-badge">Loading…</span>
+    <span class="dot loading" id="sdot"></span>
+    <span class="upd" id="upd-lbl">Loading…</span>
+    <button class="btn" onclick="forceRefresh()">↺ Refresh</button>
+  </div>
+</div>
+
+<div class="tw-bar">
+  <span class="tw-label">History:</span>
+  <button class="tw-btn" id="tw-2y"  onclick="setWindow('2y')">2 years</button>
+  <button class="tw-btn on" id="tw-1y" onclick="setWindow('1y')">1 year</button>
+  <button class="tw-btn" id="tw-ytd" onclick="setWindow('ytd')">YTD</button>
+  <button class="tw-btn" id="tw-3m"  onclick="setWindow('3m')">3 months</button>
+  <button class="tw-btn" id="tw-1m"  onclick="setWindow('1m')">1 month</button>
+</div>
+
+<div class="bias-card">
+  <div class="section-label">Natural Gas Price Bias</div>
+  <div class="metric-boxes" style="grid-template-columns:repeat(4,1fr)">
+    <div class="mbox mbox-season">
+      <div class="mbox-lbl">Season</div>
+      <div class="mbox-val" id="s-cur">—</div>
+      <div class="mbox-sub" id="s-sub">—</div>
+    </div>
+    <div class="mbox">
+      <div class="mbox-lbl">16d Demand</div>
+      <div class="mbox-val" id="dh-dem">—</div>
+      <div class="mbox-sub">HDD+CDD fcst</div>
+    </div>
+    <div class="mbox">
+      <div class="mbox-lbl">vs 5y Avg</div>
+      <div class="mbox-val" id="dh-dev">—</div>
+      <div class="mbox-sub" id="dh-dev-sub">demand diff</div>
+    </div>
+    <div class="mbox">
+      <div class="mbox-lbl">Demand Driver</div>
+      <div class="mbox-val" id="dh-driver">—</div>
+      <div class="mbox-sub" id="dh-driver-sub">primary source</div>
+    </div>
+  </div>
+  <div class="bias-word neut" id="bias-word">—</div>
+  <div class="bias-score-wrap">
+    <div class="bias-score-bar"><div class="bias-score-fill" id="bias-fill" style="width:50%"></div></div>
+    <div class="bias-score-num" id="bias-score-num">0.0</div>
+  </div>
+  <div id="bias-scale" style="display:flex;gap:4px;margin-bottom:0"></div>
+  <div class="accordion">
+    <button class="accordion-btn" onclick="toggleAccordion()">
+      <span>Score Breakdown</span>
+      <span class="accordion-arrow" id="accordion-arrow">▶</span>
+    </button>
+    <div class="accordion-body" id="accordion-body">
+      <div class="score-method-title">Score = Σ (anomaly × weight) · clipped to [−5, +5]</div>
+      <div class="score-row" id="sm-row-s-hdd"></div>
+      <div class="score-row" id="sm-row-s-cdd"></div>
+      <div class="score-row" id="sm-row-l-hdd"></div>
+      <div class="score-row" id="sm-row-l-cdd"></div>
+      <div class="score-row" id="sm-row-total"></div>
+    </div>
+  </div>
+</div>
+
+<div class="block">
+  <div class="bhead">
+    <div>
+      <div class="btitle">NatGas Bias Score — Historical &amp; Forecast</div>
+      <div class="bsub">Daily score (7d MA) · Forecast uses GFS model · Seasonal transitions marked</div>
+    </div>
+    <div class="legend">
+      <span class="li"><span class="ldr" style="background:var(--green)"></span>Bullish (&gt;+0.8)</span>
+      <span class="li"><span class="ldr" style="background:var(--yellow)"></span>Neutral</span>
+      <span class="li"><span class="ldr" style="background:var(--red)"></span>Bearish (&lt;−0.8)</span>
+    </div>
+  </div>
+  <div id="spin4" class="spin"><span class="sp"></span>Computing score…</div>
+  <div class="cw" style="height:220px;display:none" id="wrap4"><canvas id="c4"></canvas></div>
+</div>
+
+<div class="block">
+  <div class="bhead">
+    <div><div class="btitle">Weighted Average Temperature</div><div class="bsub" id="ch1-sub">History + 16-day forecast vs 5-year range</div></div>
+    <div class="legend">
+      <span class="li"><span class="ldr" style="background:var(--orange)"></span>Actual/Forecast</span>
+      <span class="li"><span class="ldr" style="background:var(--blue);opacity:.7"></span>5y Avg</span>
+      <span class="li"><span class="ldband" style="background:rgba(68,147,248,.15)"></span>5y Min–Max</span>
+      <span class="li"><span style="width:2px;height:12px;background:rgba(255,255,255,.3);display:inline-block"></span><span>Season change</span></span>
+    </div>
+  </div>
+  <div id="spin1" class="spin"><span class="sp"></span>Fetching data…</div>
+  <div class="cw" style="height:280px;display:none" id="wrap1"><canvas id="c1"></canvas></div>
+</div>
+
+<div class="block">
+  <div class="bhead">
+    <div><div class="btitle">Total Demand Index (HDD + CDD)</div><div class="bsub" id="ch3-sub">History + 16-day forecast vs 5-year average</div></div>
+    <div class="legend">
+      <span class="li"><span class="ldb" style="background:var(--purple)"></span>Demand</span>
+      <span class="li"><span class="ldr" style="background:var(--purple);opacity:.6"></span>5y avg</span>
+      <span class="li"><span class="ldband" style="background:rgba(163,113,247,.12)"></span>5y Min–Max</span>
+      <span class="li"><span style="width:2px;height:12px;background:rgba(255,255,255,.3);display:inline-block"></span><span>Season change</span></span>
+    </div>
+  </div>
+  <div id="spin3" class="spin"><span class="sp"></span>Fetching data…</div>
+  <div class="cw" style="height:220px;display:none" id="wrap3"><canvas id="c3"></canvas></div>
+</div>
+
+<script>
+const BASE=18,FCST_DAYS=16;
+const REGIONS=[
+  {name:'Northeast',lat:39.95,lon:-75.17,w:0.35},
+  {name:'Midwest',  lat:41.85,lon:-87.65,w:0.32},
+  {name:'S.Central',lat:32.78,lon:-96.80,w:0.18},
+  {name:'Southeast',lat:33.75,lon:-84.39,w:0.10},
+  {name:'West',     lat:39.74,lon:-104.98,w:0.05},
+];
+const HIST_YEARS=[1,2,3,4,5];
+const TW={
+  '2y':{days:730,label:'2 years'},
+  '1y':{days:365,label:'1 year'},
+  'ytd':{days:null,label:'YTD'},
+  '3m':{days:90,label:'3 months'},
+  '1m':{days:30,label:'1 month'},
+};
+const WEIGHTS={sHdd:.40,sCdd:.25,lHdd:.25,lCdd:.10};
+const SEASON_TRANSITIONS=[
+  {month:3, day:1, label:'Shoulder',icon:'🌤',col:'rgba(227,179,65,.7)'},
+  {month:6, day:1, label:'Cooling', icon:'☀️',col:'rgba(240,136,62,.7)'},
+  {month:10,day:1, label:'Shoulder',icon:'🌤',col:'rgba(227,179,65,.7)'},
+  {month:11,day:1, label:'Heating', icon:'❄️',col:'rgba(68,147,248,.7)'},
+];
+
+const LS_CACHE_KEY='natgas_data_cache_v1';
+const LS_API_KEY='natgas_api_calls_v1';
+const LS_BIAS_KEY='natgas_bias_v2';
+
+let currentWindow='1y',S=null;
+let ch1=null,ch3=null,ch4=null;
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+const HDD=t=>Math.max(0,BASE-t);
+const CDD=t=>Math.max(0,t-BASE);
+const wAvg=vals=>REGIONS.reduce((s,r,i)=>s+r.w*(vals[i]??0),0);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const sgn=v=>v>=0?'+':'';
+const arrAvg=arr=>{const v=arr.filter(x=>x!==null&&!isNaN(x));return v.length?v.reduce((a,b)=>a+b)/v.length:0;};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function isoDate(off,yr=0){
+  const d=new Date();d.setFullYear(d.getFullYear()-yr);d.setDate(d.getDate()+off);
+  return d.toISOString().split('T')[0];
+}
+function shortDate(iso){
+  return new Date(iso+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function getHistDays(){
+  if(currentWindow==='ytd'){const n=new Date();return Math.max(1,Math.floor((n-new Date(n.getFullYear(),0,1))/864e5));}
+  return TW[currentWindow].days;
+}
+function setDot(s){document.getElementById('sdot').className='dot '+s;}
+
+// ── API COUNTER ───────────────────────────────────────────────────────────────
+function getTodayKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getApiCount(){
+  try{const raw=localStorage.getItem(LS_API_KEY);if(!raw)return{date:getTodayKey(),count:0};const obj=JSON.parse(raw);if(obj.date!==getTodayKey())return{date:getTodayKey(),count:0};return obj;}
+  catch{return{date:getTodayKey(),count:0};}
+}
+function incrementApiCount(n=1){
+  try{const obj=getApiCount();obj.count+=n;localStorage.setItem(LS_API_KEY,JSON.stringify(obj));updateApiCounterUI(obj.count);}catch{}
+}
+function updateApiCounterUI(count){
+  document.getElementById('api-count').textContent=count;
+  const now=new Date(),midnight=new Date(now);midnight.setHours(24,0,0,0);
+  const diff=Math.round((midnight-now)/60000),h=Math.floor(diff/60),m=diff%60;
+  document.getElementById('api-reset').textContent=`resets in ${h}h ${m}m`;
+}
+
+// ── HOURLY CACHE ──────────────────────────────────────────────────────────────
+function getCacheSlot(){
+  const now=new Date();
+  return new Date(now.getFullYear(),now.getMonth(),now.getDate(),now.getHours(),0,0,0).getTime();
+}
+function getCacheKey(w){return`${LS_CACHE_KEY}_${w}_${getCacheSlot()}`;}
+function loadFromCache(w){
+  try{const raw=localStorage.getItem(getCacheKey(w));if(!raw)return null;const obj=JSON.parse(raw);if(obj.slot!==getCacheSlot())return null;return obj.data;}
+  catch{return null;}
+}
+function saveToCache(w,data){
+  try{localStorage.setItem(getCacheKey(w),JSON.stringify({slot:getCacheSlot(),window:w,savedAt:Date.now(),data}));cleanOldCache();}
+  catch(e){console.warn('Cache save failed:',e);}
+}
+function cleanOldCache(){
+  try{
+    const cur=getCacheSlot(),toDelete=[];
+    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(LS_CACHE_KEY)){try{const obj=JSON.parse(localStorage.getItem(k));if(obj.slot!==cur)toDelete.push(k);}catch{toDelete.push(k);}}}
+    toDelete.forEach(k=>localStorage.removeItem(k));
+  }catch{}
+}
+function getCachedAt(w){
+  try{const raw=localStorage.getItem(getCacheKey(w));if(!raw)return null;return JSON.parse(raw).savedAt||null;}catch{return null;}
+}
+function nextHourStr(){const d=new Date();d.setHours(d.getHours()+1,0,0,0);return d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});}
+function setBadge(type,text){const el=document.getElementById('cache-badge');el.textContent=text;el.className='cache-badge cache-'+type;}
+
+// ── BIAS HISTORY ──────────────────────────────────────────────────────────────
+function loadBiasHistory(){try{return JSON.parse(localStorage.getItem(LS_BIAS_KEY)||'[]');}catch{return[];}}
+function saveBiasScore(score){
+  try{const h=loadBiasHistory(),now=Date.now();h.push({ts:now,score});localStorage.setItem(LS_BIAS_KEY,JSON.stringify(h.filter(e=>e.ts>=now-30*864e5)));}catch{}
+}
+function getBiasChanges(cur){
+  const h=loadBiasHistory(),now=Date.now();
+  const find=(msAgo,win)=>{const t=now-msAgo,c=h.filter(e=>Math.abs(e.ts-t)<win);return c.length?c.reduce((a,b)=>Math.abs(b.ts-t)<Math.abs(a.ts-t)?b:a).score:null;};
+  return{dod:find(864e5,6*36e5),wow:find(7*864e5,12*36e5)};
+}
+
+// ── SEASONAL ──────────────────────────────────────────────────────────────────
+const SEASON_DEF=[
+  {name:'Heating Season',short:'Heating',icon:'❄️',col:'#7eb8f7',segs:[{sm:11,sd:1,em:2,ed:28}]},
+  {name:'Shoulder Season',short:'Shoulder',icon:'🌤',col:'var(--yellow)',segs:[{sm:3,sd:1,em:5,ed:31},{sm:10,sd:1,em:10,ed:31}]},
+  {name:'Cooling Season',short:'Cooling',icon:'☀️',col:'#f0a060',segs:[{sm:6,sd:1,em:9,ed:30}]},
+];
+const SEASON_ORDER=[{name:'Heating Season',sm:11},{name:'Shoulder Season',sm:3},{name:'Cooling Season',sm:6},{name:'Shoulder Season',sm:10}];
+
+function getSeasonInfo(){
+  const now=new Date(),m=now.getMonth()+1,d=now.getDate(),yr=now.getFullYear();
+  function inSeg(s){if(s.sm<=s.em)return(m>s.sm||(m===s.sm&&d>=s.sd))&&(m<s.em||(m===s.em&&d<=s.ed));return(m>s.sm||(m===s.sm&&d>=s.sd))||(m<s.em||(m===s.em&&d<=s.ed));}
+  let curDef=SEASON_DEF.find(def=>def.segs.some(s=>inSeg(s)))||SEASON_DEF[1];
+  const curSeg=curDef.segs.find(s=>inSeg(s))||curDef.segs[0];
+  function segStart(s){let sy=yr;if(s.sm>s.em&&m<=s.em)sy=yr-1;return new Date(sy,s.sm-1,s.sd);}
+  function segEnd(s){const ss=segStart(s);let ey=ss.getFullYear();if(s.em<s.sm)ey++;return new Date(ey,s.em-1,s.ed);}
+  const sStart=segStart(curSeg),sEnd=segEnd(curSeg);
+  const sTotal=Math.max(1,(sEnd-sStart)/864e5),sElapsed=Math.max(0,(now-sStart)/864e5);
+  const daysLeft=Math.max(0,Math.ceil((sEnd-now)/864e5)),daysIn=Math.max(1,Math.ceil(sElapsed));
+  const ordIdx=SEASON_ORDER.findIndex(s=>s.name===curDef.name&&s.sm===curSeg.sm);
+  const nextDef=SEASON_DEF.find(d=>d.name===SEASON_ORDER[(ordIdx+1)%SEASON_ORDER.length].name)||SEASON_DEF[0];
+  return{...curDef,daysLeft,daysIn,sTotal:Math.ceil(sTotal),nextName:nextDef.name,nextIcon:nextDef.icon,nextShort:nextDef.short,isShoulder:curDef.name==='Shoulder Season'};
+}
+function getSeasonTransitionIndices(allDates){
+  const out=[];
+  for(let i=1;i<allDates.length;i++){
+    const prev=new Date(allDates[i-1]+'T12:00:00Z'),curr=new Date(allDates[i]+'T12:00:00Z');
+    const pm=prev.getMonth()+1,pd=prev.getDate(),cm=curr.getMonth()+1,cd=curr.getDate();
+    for(const t of SEASON_TRANSITIONS){
+      if((pm<t.month||(pm===t.month&&pd<t.day))&&(cm>t.month||(cm===t.month&&cd>=t.day)))
+        out.push({index:i,label:t.label,icon:t.icon,col:t.col});
+    }
+  }
+  return out;
+}
+
+// ── FETCH ─────────────────────────────────────────────────────────────────────
+async function fetchWithRetry(url,retries=4,baseDelay=1500){
+  for(let i=0;i<=retries;i++){
+    try{
+      const r=await fetch(url);
+      if(r.status===429){if(i===retries)throw new Error('Rate limit (429). Try again later.');await sleep(baseDelay*Math.pow(2,i));continue;}
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      incrementApiCount(1);
+      return await r.json();
+    }catch(e){if(i===retries)throw e;await sleep(baseDelay*Math.pow(2,i));}
+  }
+}
+async function batchedRequests(tasks,batchSize=5,delay=350){
+  const results=[];
+  for(let i=0;i<tasks.length;i+=batchSize){results.push(...await Promise.all(tasks.slice(i,i+batchSize).map(t=>t())));if(i+batchSize<tasks.length)await sleep(delay);}
+  return results;
+}
+async function fetchForecast(lat,lon){
+  const j=await fetchWithRetry(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m&forecast_days=${FCST_DAYS}&timezone=UTC`);
+  return Array.from({length:FCST_DAYS},(_,d)=>{const sl=j.hourly.temperature_2m.slice(d*24,d*24+24).filter(v=>v!==null);return sl.length?sl.reduce((a,b)=>a+b)/sl.length:null;});
+}
+async function fetchHistory(lat,lon,s,e){
+  const j=await fetchWithRetry(`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min&start_date=${s}&end_date=${e}&timezone=UTC`);
+  return j.daily.time.map((dt,i)=>({date:dt,avg:(j.daily.temperature_2m_max[i]+j.daily.temperature_2m_min[i])/2}));
+}
+
+// ── PROCESS DATA ──────────────────────────────────────────────────────────────
+function processData(raw){
+  const{histDates,histTemps,fcstDates,fcstTemps,histByYear,HIST_DAYS}=raw;
+  const total=HIST_DAYS+FCST_DAYS;
+  const h5avg=[],h5min=[],h5max=[];
+  for(let d=0;d<total;d++){
+    const v=histByYear.map(yr=>yr[d]).filter(v=>v!==null&&!isNaN(v));
+    if(!v.length){h5avg.push(null);h5min.push(null);h5max.push(null);continue;}
+    const av=v.reduce((a,b)=>a+b)/v.length;
+    h5avg.push(av);h5min.push(Math.min(Math.min(...v),av));h5max.push(Math.max(Math.max(...v),av));
+  }
+  const allDates=[...histDates,...fcstDates],allTemps=[...histTemps,...fcstTemps];
+  const todayIdx=HIST_DAYS,labels=allDates.map(shortDate);
+  const hddAll=allTemps.map(t=>t===null?null:+HDD(t).toFixed(2));
+  const cddAll=allTemps.map(t=>t===null?null:+CDD(t).toFixed(2));
+  const hdd5a=h5avg.map(t=>t===null?null:+HDD(t).toFixed(2));
+  const cdd5a=h5avg.map(t=>t===null?null:+CDD(t).toFixed(2));
+  const demAll=allTemps.map(t=>t===null?null:+(HDD(t)+CDD(t)).toFixed(2));
+  const dem5perYear=HIST_YEARS.map((_,yi)=>Array.from({length:total},(_,d)=>{const t=histByYear[yi][d];return(t===null||isNaN(t))?null:+(HDD(t)+CDD(t)).toFixed(2);}));
+  const dem5avg=[],dem5min=[],dem5max=[];
+  for(let d=0;d<total;d++){
+    const v=dem5perYear.map(yr=>yr[d]).filter(v=>v!==null&&!isNaN(v));
+    if(!v.length){dem5avg.push(null);dem5min.push(null);dem5max.push(null);continue;}
+    const av=v.reduce((a,b)=>a+b)/v.length;
+    dem5avg.push(av);dem5min.push(Math.min(Math.min(...v),av));dem5max.push(Math.max(Math.max(...v),av));
+  }
+  const hddAnom=hddAll.map((v,i)=>v===null||hdd5a[i]===null?null:+(v-hdd5a[i]).toFixed(4));
+  const cddAnom=cddAll.map((v,i)=>v===null||cdd5a[i]===null?null:+(v-cdd5a[i]).toFixed(4));
+  const scoreSingle=hddAnom.map((hdd,i)=>{const cdd=cddAnom[i];if(hdd===null||cdd===null)return null;return clamp(hdd*WEIGHTS.sHdd+cdd*WEIGHTS.sCdd+hdd*WEIGHTS.lHdd+cdd*WEIGHTS.lCdd,-5,5);});
+  const scoreMA=scoreSingle.map((v,i)=>{const win=scoreSingle.slice(Math.max(0,i-3),i+4).filter(x=>x!==null);return win.length?+(win.reduce((a,b)=>a+b)/win.length).toFixed(3):null;});
+  const seasonTransitions=getSeasonTransitionIndices(allDates);
+  return{labels,allTemps,allDates,todayIdx,HIST_DAYS,h5avg,h5min,h5max,hddAll,cddAll,hdd5a,cdd5a,demAll,dem5avg,dem5min,dem5max,hddAnom,cddAnom,scoreSingle,scoreMA,seasonTransitions};
+}
+
+// ── LOAD ──────────────────────────────────────────────────────────────────────
+async function loadAll(forceNetwork=false){
+  setDot('loading');setBadge('loading','Checking cache…');
+  updateApiCounterUI(getApiCount().count);
+  if(!forceNetwork){
+    const cached=loadFromCache(currentWindow);
+    if(cached){
+      S=cached;
+      const ct=getCachedAt(currentWindow);
+      const ctStr=ct?new Date(ct).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}):'—';
+      document.getElementById('upd-lbl').textContent=`Cached ${ctStr} · next update at ${nextHourStr()}`;
+      setBadge('cached',`Cached ${ctStr}`);setDot('ok');
+      updateSubtitles();renderAll();return;
+    }
+  }
+  setBadge('loading','Fetching live data…');
+  try{
+    const HIST_DAYS=getHistDays();
+    const hS=isoDate(-HIST_DAYS),hE=isoDate(-1);
+    const histPR=await batchedRequests(REGIONS.map(r=>()=>fetchHistory(r.lat,r.lon,hS,hE)),5,200);
+    const histDates=histPR[0].map(d=>d.date);
+    const histTemps=histDates.map((_,di)=>wAvg(histPR.map(rh=>rh[di]?.avg??null)));
+    const fcstPR=await batchedRequests(REGIONS.map(r=>()=>fetchForecast(r.lat,r.lon)),5,200);
+    const fcstDates=Array.from({length:FCST_DAYS},(_,i)=>isoDate(i));
+    const fcstTemps=fcstDates.map((_,di)=>wAvg(fcstPR.map(rf=>rf[di]??null)));
+    const flat5y=await batchedRequests(HIST_YEARS.flatMap(yr=>REGIONS.map(r=>()=>fetchHistory(r.lat,r.lon,isoDate(-HIST_DAYS,yr),isoDate(FCST_DAYS-1,yr)))),5,400);
+    const histByYear=HIST_YEARS.map((_,yi)=>{const pr=flat5y.slice(yi*REGIONS.length,(yi+1)*REGIONS.length);return Array.from({length:pr[0].length},(_,d)=>wAvg(pr.map(rh=>rh[d]?.avg??null)));});
+    S=processData({histDates,histTemps,fcstDates,fcstTemps,histByYear,HIST_DAYS});
+    saveToCache(currentWindow,S);
+    const now=new Date();
+    document.getElementById('upd-lbl').textContent=now.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})+` UTC · next update at ${nextHourStr()}`;
+    setBadge('live','Live data');setDot('ok');
+    updateSubtitles();renderAll();
+  }catch(err){
+    setDot('err');setBadge('loading','Error');
+    document.getElementById('upd-lbl').textContent='Error: '+err.message;
+    ['spin1','spin3','spin4'].forEach(id=>{document.getElementById(id).style.display='block';document.getElementById(id).innerHTML='⚠ '+err.message;});
+    console.error(err);
+  }
+}
+function updateSubtitles(){
+  const wLabel=TW[currentWindow]?.label||currentWindow;
+  ['ch1-sub','ch3-sub'].forEach(id=>document.getElementById(id).textContent=`${wLabel} history + 16-day forecast vs 5-year range`);
+}
+function forceRefresh(){
+  S=null;[ch1,ch3,ch4].forEach(c=>{try{if(c)c.destroy();}catch(e){}});ch1=ch3=ch4=null;
+  ['wrap1','wrap3','wrap4'].forEach(id=>document.getElementById(id).style.display='none');
+  ['spin1','spin3','spin4'].forEach(id=>{document.getElementById(id).style.display='block';document.getElementById(id).innerHTML='<span class="sp"></span>Fetching data…';});
+  loadAll(true);
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────────────────────
+function renderAll(){if(!S)return;renderBias();renderChart4();renderChart1();renderChart3();}
+
+// ── BIAS LABEL ────────────────────────────────────────────────────────────────
+function biasLabel(score){
+  if(score>2.5)return{w:'BULLISH',cls:'bull'};if(score>0.8)return{w:'SL. BULLISH',cls:'sbull'};
+  if(score<-2.5)return{w:'BEARISH',cls:'bear'};if(score<-0.8)return{w:'SL. BEARISH',cls:'sbear'};
+  return{w:'NEUTRAL',cls:'neut'};
+}
+
+// ── RENDER BIAS ───────────────────────────────────────────────────────────────
+function renderBias(){
+  const{hddAnom,cddAnom,todayIdx,demAll,dem5avg,hddAll,cddAll}=S;
+  const sHdd=arrAvg(hddAnom.slice(todayIdx,todayIdx+7));
+  const sCdd=arrAvg(cddAnom.slice(todayIdx,todayIdx+7));
+  const lHdd=arrAvg(hddAnom.slice(todayIdx+7,todayIdx+FCST_DAYS));
+  const lCdd=arrAvg(cddAnom.slice(todayIdx+7,todayIdx+FCST_DAYS));
+  const cSHdd=sHdd*WEIGHTS.sHdd,cSCdd=sCdd*WEIGHTS.sCdd,cLHdd=lHdd*WEIGHTS.lHdd,cLCdd=lCdd*WEIGHTS.lCdd;
+  const score=clamp(cSHdd+cSCdd+cLHdd+cLCdd,-5,5);
+  const{w,cls}=biasLabel(score);
+
+  // Season box
+  const si=getSeasonInfo();
+  document.getElementById('s-cur').textContent=si.icon+' '+si.short;
+  document.getElementById('s-cur').style.color=si.col;
+  document.getElementById('s-sub').innerHTML=`Day ${si.daysIn}/${si.sTotal} · ${si.daysLeft}d left<br><span style="color:var(--text3)">Next: ${si.nextIcon} ${si.nextShort}</span>`;
+
+  // Demand
+  const demFwd=demAll.slice(todayIdx).reduce((a,b)=>a+(b??0),0);
+  const dem5Fwd=dem5avg.slice(todayIdx).reduce((a,b)=>a+(b??0),0);
+  const demDev=demFwd-dem5Fwd;
+  const demPct=dem5Fwd>0.5?(demDev/dem5Fwd*100):0;
+  const demCol=Math.abs(demPct)<5?'var(--yellow)':demDev>0?'var(--green)':'var(--red)';
+  document.getElementById('dh-dem').textContent=demFwd.toFixed(0);
+  document.getElementById('dh-dem').style.color=demDev>0?'var(--green)':demDev<0?'var(--red)':'var(--yellow)';
+  document.getElementById('dh-dev').textContent=(demDev>=0?'+':'')+demDev.toFixed(0);
+  document.getElementById('dh-dev').style.color=demCol;
+  document.getElementById('dh-dev-sub').textContent=(demDev>=0?'+':'')+demPct.toFixed(0)+'% vs 5y avg';
+
+  // Driver
+  const hddFwd=hddAll.slice(todayIdx).reduce((a,b)=>a+(b??0),0);
+  const cddFwd=cddAll.slice(todayIdx).reduce((a,b)=>a+(b??0),0);
+  const totalFwd=hddFwd+cddFwd;
+  const dEl=document.getElementById('dh-driver'),dSub=document.getElementById('dh-driver-sub');
+  if(totalFwd<0.5){dEl.textContent='—';dEl.style.color='var(--text2)';dSub.textContent='no demand';}
+  else if(si.isShoulder){
+    const hPct=Math.round(hddFwd/totalFwd*100),cPct=100-hPct;
+    if(hPct>=cPct){dEl.textContent='HDD '+hPct+'%';dEl.style.color='var(--blue)';dSub.textContent='CDD '+cPct+'% · shoulder';}
+    else{dEl.textContent='CDD '+cPct+'%';dEl.style.color='var(--red)';dSub.textContent='HDD '+hPct+'% · shoulder';}
+  }else if(hddFwd>=cddFwd){dEl.textContent='🔥 HDD';dEl.style.color='var(--blue)';dSub.textContent=Math.round(hddFwd/totalFwd*100)+'% of demand';}
+  else{dEl.textContent='❄️ CDD';dEl.style.color='var(--red)';dSub.textContent=Math.round(cddFwd/totalFwd*100)+'% of demand';}
+
+  // DoD / WoW removed — keep saveBiasScore for future use
+  saveBiasScore(score);
+
+  // Bias word + bar
+  const bw=document.getElementById('bias-word');bw.textContent=w;bw.className='bias-word '+cls;
+  document.getElementById('bias-fill').style.width=((score+5)/10*100).toFixed(1)+'%';
+  document.getElementById('bias-fill').style.background=score>0.8?'var(--green)':score<-0.8?'var(--red)':'var(--yellow)';
+  document.getElementById('bias-score-num').textContent=(score>=0?'+':'')+score.toFixed(3);
+
+  // Scale
+  const SCALE=[{label:'BEARISH',cls:'bear',r:'≤ −2.5'},{label:'SL. BEARISH',cls:'sbear',r:'−2.5 to −0.8'},{label:'NEUTRAL',cls:'neut',r:'−0.8 to +0.8'},{label:'SL. BULLISH',cls:'sbull',r:'+0.8 to +2.5'},{label:'BULLISH',cls:'bull',r:'≥ +2.5'}];
+  const cols={bull:'var(--green)',sbull:'#7ed49a',neut:'var(--yellow)',sbear:'#ffaa99',bear:'var(--red)'};
+  const ai=score>2.5?4:score>0.8?3:score>=-0.8?2:score>=-2.5?1:0;
+  document.getElementById('bias-scale').innerHTML=SCALE.map((it,i)=>{
+    const active=i===ai,col=cols[it.cls];
+    return`<div title="${it.r}" style="flex:1;text-align:center;padding:4px 2px;border-radius:4px;font-size:9px;font-weight:${active?700:400};font-family:var(--mono);border:1px solid ${active?col:'var(--border2)'};background:${active?`${col}22`:'transparent'};color:${active?col:'var(--text3)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.label}</div>`;
+  }).join('');
+
+  // Breakdown rows
+  function scoreRowHTML(label,anom,weight,contrib,isTotal){
+    if(isTotal){const tc=score>0.8?'var(--green)':score<-0.8?'var(--red)':'var(--yellow)';return`<span class="score-total-label">${label}</span><span style="flex:1"></span><span class="score-total-val" style="color:${tc}">${(score>=0?'+':'')+score.toFixed(3)}</span>`;}
+    const col=contrib>0.001?'var(--green)':contrib<-0.001?'var(--red)':'var(--yellow)';
+    const bp=clamp(((contrib+2)/4)*100,0,100).toFixed(1);
+    return`<span class="score-row-label">${label}</span><span class="score-row-anom" style="color:${col}">${sgn(anom)}${anom.toFixed(2)}</span><span class="score-row-eq">×</span><span class="score-row-wt">${weight.toFixed(2)}</span><span class="score-row-eq">=</span><div class="score-row-bar"><div class="score-row-fill" style="width:${bp}%;background:${col}"></div></div><span class="score-row-val" style="color:${col}">${sgn(contrib)}${contrib.toFixed(3)}</span>`;
+  }
+  document.getElementById('sm-row-s-hdd').innerHTML=scoreRowHTML('1–7d HDD anomaly',sHdd,WEIGHTS.sHdd,cSHdd);
+  document.getElementById('sm-row-s-cdd').innerHTML=scoreRowHTML('1–7d CDD anomaly',sCdd,WEIGHTS.sCdd,cSCdd);
+  document.getElementById('sm-row-l-hdd').innerHTML=scoreRowHTML('8–16d HDD anomaly',lHdd,WEIGHTS.lHdd,cLHdd);
+  document.getElementById('sm-row-l-cdd').innerHTML=scoreRowHTML('8–16d CDD anomaly',lCdd,WEIGHTS.lCdd,cLCdd);
+  document.getElementById('sm-row-total').innerHTML=scoreRowHTML('Total score (clipped ±5)',0,0,0,true);
+}
+
+// ── ACCORDION ─────────────────────────────────────────────────────────────────
+function toggleAccordion(){
+  const body=document.getElementById('accordion-body'),arrow=document.getElementById('accordion-arrow');
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  arrow.style.transform=open?'rotate(90deg)':'rotate(0deg)';
+}
+
+// ── CHART PLUGINS ─────────────────────────────────────────────────────────────
+function makeSeasonPlugin(uid){
+  return{id:'season_'+uid,afterDraw(chart){
+    if(!S||!S.seasonTransitions.length)return;
+    const{ctx,chartArea:{top,bottom},scales:{x}}=chart;
+    ctx.save();
+    for(const t of S.seasonTransitions){
+      if(t.index<0||t.index>=S.labels.length)continue;
+      const px=x.getPixelForValue(t.index);
+      ctx.strokeStyle=t.col;ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.moveTo(px,top);ctx.lineTo(px,bottom);ctx.stroke();
+      ctx.setLineDash([]);ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';
+      ctx.fillStyle=t.col;ctx.fillText(t.icon+' '+t.label,px+3,top+12);
+    }
+    ctx.restore();
+  }};
+}
+function makeBandPlugin(pid,mk,xk,color){
+  return{id:pid,beforeDatasetsDraw(chart){
+    const{ctx,scales:{x,y}}=chart;
+    const mn=chart.data.datasets.find(d=>d._key===mk)?.data,mx=chart.data.datasets.find(d=>d._key===xk)?.data;
+    if(!mn||!mx)return;
+    ctx.save();ctx.beginPath();let go=false;
+    mx.forEach((v,i)=>{if(v==null||isNaN(v))return;const px=x.getPixelForValue(i),py=y.getPixelForValue(v);!go?(ctx.moveTo(px,py),go=true):ctx.lineTo(px,py);});
+    [...mn].reverse().forEach((v,i)=>{const ri=mn.length-1-i;if(v==null||isNaN(v))return;ctx.lineTo(x.getPixelForValue(ri),y.getPixelForValue(v));});
+    ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.restore();
+  }};
+}
+function makeTodayPlugin(uid){
+  return{id:'td_'+uid,afterDraw(chart){
+    if(!S)return;
+    const{ctx,chartArea:{top,bottom},scales:{x}}=chart;
+    const px=x.getPixelForValue(S.todayIdx);
+    ctx.save();ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(px,top);ctx.lineTo(px,bottom);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='10px Inter,sans-serif';ctx.fillText('today',px+4,top+13);
+    ctx.restore();
+  }};
+}
+function makeAnomalyShadePlugin(tid){
+  return{id:'ashd_'+tid,beforeDatasetsDraw(chart){
+    const{ctx,scales:{x,y}}=chart;
+    const fDs=chart.data.datasets.find(d=>d._key==='fcst'),aDs=chart.data.datasets.find(d=>d._key==='avg');
+    if(!fDs||!aDs)return;
+    ctx.save();
+    fDs.data.forEach((v,i)=>{
+      if(v==null||aDs.data[i]==null||i>=fDs.data.length-1||i<tid)return;
+      const nv=fDs.data[i+1]??v,na=aDs.data[i+1]??aDs.data[i];
+      const x0=x.getPixelForValue(i),x1=x.getPixelForValue(i+1);
+      const ty0=y.getPixelForValue(v),ty1=y.getPixelForValue(nv);
+      const ay0=y.getPixelForValue(aDs.data[i]),ay1=y.getPixelForValue(na);
+      ctx.beginPath();ctx.moveTo(x0,ty0);ctx.lineTo(x1,ty1);ctx.lineTo(x1,ay1);ctx.lineTo(x0,ay0);ctx.closePath();
+      ctx.fillStyle=v>aDs.data[i]?'rgba(255,123,114,0.12)':'rgba(68,147,248,0.15)';ctx.fill();
+    });
+    ctx.restore();
+  }};
+}
+function gBase(){
+  return{responsive:true,maintainAspectRatio:false,animation:{duration:300},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c2128',titleColor:'#e6edf3',bodyColor:'#8b949e',borderColor:'#30363d',borderWidth:1,padding:10,titleFont:{family:'Inter',size:11},bodyFont:{family:'Inter',size:11}}},
+    scales:{x:{grid:{color:'rgba(33,38,45,0.8)'},ticks:{color:'#6e7681',font:{family:'Inter',size:9},maxRotation:45,autoSkip:true,maxTicksLimit:18}},y:{grid:{color:'rgba(33,38,45,0.8)'},ticks:{color:'#6e7681',font:{family:'Inter',size:9}}}}};
+}
+function getPointRadius(){const hd=getHistDays();if(hd>=365)return 0;if(hd>=90)return 1;if(hd>=30)return 2;return 3;}
+
+// ── CHART 4: Bias Score ───────────────────────────────────────────────────────
+function renderChart4(){
+  const{labels,scoreMA,todayIdx}=S;
+  document.getElementById('spin4').style.display='none';document.getElementById('wrap4').style.display='block';
+  if(ch4)ch4.destroy();
+  const zoneBandPlugin={id:'zoneBand',beforeDatasetsDraw(chart){
+    const{ctx,chartArea:{left,right},scales:{y}}=chart;
+    const py=v=>y.getPixelForValue(v);
+    ctx.save();
+    [{from:2.5,to:5,col:'rgba(63,185,80,0.08)'},{from:0.8,to:2.5,col:'rgba(63,185,80,0.05)'},{from:-0.8,to:0.8,col:'rgba(227,179,65,0.04)'},{from:-2.5,to:-0.8,col:'rgba(255,123,114,0.05)'},{from:-5,to:-2.5,col:'rgba(255,123,114,0.08)'}
+    ].forEach(({from,to,col})=>{const y1=Math.min(py(from),py(to)),h=Math.abs(py(from)-py(to));ctx.fillStyle=col;ctx.fillRect(left,y1,right-left,h);});
+    [0.8,-0.8,2.5,-2.5].forEach(v=>{const col=Math.abs(v)===0.8?'rgba(227,179,65,0.35)':v>0?'rgba(63,185,80,0.3)':'rgba(255,123,114,0.3)';ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(left,py(v));ctx.lineTo(right,py(v));ctx.stroke();});
+    ctx.strokeStyle='rgba(110,118,129,0.25)';ctx.lineWidth=1;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(left,py(0));ctx.lineTo(right,py(0));ctx.stroke();
+    ctx.font='bold 9px Inter,sans-serif';ctx.textAlign='left';ctx.setLineDash([]);
+    [{v:3.75,txt:'BULLISH',col:'rgba(63,185,80,0.65)'},{v:1.6,txt:'SL. BULLISH',col:'rgba(63,185,80,0.5)'},{v:0,txt:'NEUTRAL',col:'rgba(227,179,65,0.55)'},{v:-1.6,txt:'SL. BEARISH',col:'rgba(255,123,114,0.5)'},{v:-3.75,txt:'BEARISH',col:'rgba(255,123,114,0.65)'}
+    ].forEach(({v,txt,col})=>{ctx.fillStyle=col;ctx.fillText(txt,left+6,py(v)+4);});
+    ctx.restore();
+  }};
+  const histScore=scoreMA.map((v,i)=>i<=todayIdx?v:null);
+  const fcstScore=scoreMA.map((v,i)=>i>=todayIdx?v:null);
+  const opts=gBase();
+  opts.scales.y.min=-5;opts.scales.y.max=5;
+  opts.scales.y.ticks.callback=v=>v>=0?'+'+v:String(v);
+  opts.plugins.tooltip.callbacks={label(c){const v=c.parsed.y;const lbl=v>2.5?'BULLISH':v>0.8?'SL. BULLISH':v<-2.5?'BEARISH':v<-0.8?'SL. BEARISH':'NEUTRAL';return`Score: ${v>=0?'+':''}${v.toFixed(3)} (${lbl})`;}};
+  ch4=new Chart(document.getElementById('c4').getContext('2d'),{
+    type:'line',plugins:[zoneBandPlugin,makeTodayPlugin('c4'),makeSeasonPlugin('c4')],
+    data:{labels,datasets:[
+      {label:'Score (history)',data:histScore,borderColor:'rgba(68,147,248,0.9)',borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:.3,fill:false,spanGaps:false},
+      {label:'Score (forecast)',data:fcstScore,borderColor:'rgba(68,147,248,0.5)',borderWidth:2,borderDash:[5,3],pointRadius:0,pointHoverRadius:5,tension:.3,fill:false,spanGaps:false},
+    ]},options:opts
+  });
+}
+
+// ── CHART 1: Temperature ──────────────────────────────────────────────────────
+function renderChart1(){
+  const{labels,allTemps,h5avg,h5min,h5max,todayIdx}=S;
+  document.getElementById('spin1').style.display='none';document.getElementById('wrap1').style.display='block';
+  if(ch1)ch1.destroy();
+  const pr=getPointRadius(),opts=gBase();
+  opts.scales.y.ticks.callback=v=>v.toFixed(0)+'°';
+  opts.plugins.tooltip.filter=item=>!['min','max'].includes(item.dataset._key);
+  opts.plugins.tooltip.callbacks={
+    label(c){return c.dataset.label+': '+c.parsed.y.toFixed(1)+'°C';},
+    afterBody(items){const i=items[0]?.dataIndex;if(i==null)return[];const mn=S.h5min[i],mx=S.h5max[i];return(mn!=null&&mx!=null)?[`5y range: ${mn.toFixed(1)} – ${mx.toFixed(1)}°C`]:[];}
+  };
+  ch1=new Chart(document.getElementById('c1').getContext('2d'),{
+    type:'line',plugins:[makeBandPlugin('b1','min','max','rgba(68,147,248,0.09)'),makeTodayPlugin('c1'),makeAnomalyShadePlugin(todayIdx),makeSeasonPlugin('c1')],
+    data:{labels,datasets:[
+      {_key:'fcst',label:'Temp',  data:allTemps,borderColor:'#f0883e',borderWidth:2,pointRadius:pr,pointHoverRadius:pr+4,pointBackgroundColor:'#f0883e',tension:.3,fill:false},
+      {_key:'avg', label:'5y Avg',data:h5avg,  borderColor:'rgba(68,147,248,.7)',borderWidth:1.5,borderDash:[5,3],pointRadius:0,pointHoverRadius:4,tension:.3,fill:false},
+      {_key:'min', label:'5y Min',data:h5min,  borderColor:'transparent',pointRadius:0,fill:false},
+      {_key:'max', label:'5y Max',data:h5max,  borderColor:'transparent',pointRadius:0,fill:false},
+    ]},options:opts
+  });
+}
+
+// ── CHART 3: Demand Index ─────────────────────────────────────────────────────
+function renderChart3(){
+  const{labels,demAll,dem5avg,dem5min,dem5max}=S;
+  document.getElementById('spin3').style.display='none';document.getElementById('wrap3').style.display='block';
+  if(ch3)ch3.destroy();
+  const opts=gBase();
+  opts.plugins.tooltip.filter=item=>!['dmin','dmax'].includes(item.dataset._key);
+  opts.plugins.tooltip.callbacks={
+    label(c){if(['dmin','dmax'].includes(c.dataset._key))return null;return c.dataset.label+': '+c.parsed.y.toFixed(1);},
+    afterBody(items){const i=items[0]?.dataIndex;if(i==null)return[];const mn=S.dem5min[i],mx=S.dem5max[i];return(mn!=null&&mx!=null)?[`5y range: ${mn.toFixed(1)} – ${mx.toFixed(1)}`]:[];}
+  };
+  const barColors=demAll.map((v,i)=>v===null||dem5avg[i]===null?'rgba(163,113,247,.4)':v>=dem5avg[i]?'rgba(163,113,247,.8)':'rgba(163,113,247,.3)');
+  ch3=new Chart(document.getElementById('c3').getContext('2d'),{
+    type:'bar',plugins:[makeBandPlugin('bd','dmin','dmax','rgba(163,113,247,0.09)'),makeTodayPlugin('c3'),makeSeasonPlugin('c3')],
+    data:{labels,datasets:[
+      {_key:'dem', label:'Demand', data:demAll,  backgroundColor:barColors,order:2},
+      {_key:'d5a', label:'5y avg',data:dem5avg, type:'line',borderColor:'rgba(163,113,247,.75)',borderWidth:1.5,borderDash:[4,3],pointRadius:0,pointHoverRadius:4,fill:false,order:1},
+      {_key:'dmin',data:dem5min,  borderColor:'transparent',pointRadius:0,fill:false,order:3},
+      {_key:'dmax',data:dem5max,  borderColor:'transparent',pointRadius:0,fill:false,order:3},
+    ]},options:opts
+  });
+}
+
+// ── CONTROLS ──────────────────────────────────────────────────────────────────
+function setWindow(w){
+  if(currentWindow===w)return;currentWindow=w;
+  Object.keys(TW).forEach(k=>document.getElementById('tw-'+k).classList.toggle('on',k===w));
+  S=null;[ch1,ch3,ch4].forEach(c=>{try{if(c)c.destroy();}catch(e){}});ch1=ch3=ch4=null;
+  ['wrap1','wrap3','wrap4'].forEach(id=>document.getElementById(id).style.display='none');
+  ['spin1','spin3','spin4'].forEach(id=>{document.getElementById(id).style.display='block';document.getElementById(id).innerHTML='<span class="sp"></span>Fetching data…';});
+  loadAll(false);
+}
+
+// ── SERVICE WORKER ────────────────────────────────────────────────────────────
+if('serviceWorker' in navigator && location.hostname.includes('github.io')){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/Natgas-Weather/sw.js')
+      .then(r=>console.log('SW:',r.scope)).catch(e=>console.warn('SW failed:',e));
+  });
+}
+
+updateApiCounterUI(getApiCount().count);
+loadAll(false);
+</script>
+</body>
+</html>

@@ -739,6 +739,28 @@ if('serviceWorker' in navigator && location.hostname.includes('github.io')){
 
 updateApiCounterUI(getApiCount().count);
 loadAll(false);
+
+// ── AUTO-REFRESH každou celou hodinu ─────────────────────────────────────────
+let _lastHourSlot = getCacheSlot();
+setInterval(() => {
+  const currentSlot = getCacheSlot();
+  if (currentSlot !== _lastHourSlot) {
+    _lastHourSlot = currentSlot;
+    console.log('New hour detected, auto-refreshing data…');
+    // Force network fetch — old cache slot already expired
+    S = null;
+    [ch1, ch3, ch4].forEach(c => { try { if (c) c.destroy(); } catch(e) {} });
+    ch1 = ch3 = ch4 = null;
+    ['wrap1','wrap3','wrap4'].forEach(id => document.getElementById(id).style.display = 'none');
+    ['spin1','spin3','spin4'].forEach(id => {
+      document.getElementById(id).style.display = 'block';
+      document.getElementById(id).innerHTML = '<span class="sp"></span>Auto-refreshing…';
+    });
+    loadAll(true);
+  }
+  // Also keep API counter reset time current
+  updateApiCounterUI(getApiCount().count);
+}, 60000); // check every minute
 </script>
 </body>
 </html>

@@ -29,7 +29,6 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // API calls: network first, fallback to cache
   if (url.hostname.includes('open-meteo.com') || url.hostname.includes('archive-api')) {
     e.respondWith(
       fetch(e.request)
@@ -49,7 +48,6 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Static files: cache first
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
